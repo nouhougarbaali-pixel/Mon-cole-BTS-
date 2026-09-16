@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Mes paiements</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <a href="tableau-de-bord.html" class="lien" style="text-align: left; margin: 0 0 10px;">&larr; Retour</a>
+    <h1 style="font-size: 19px;">Mes paiements</h1>
+  </div>
+
+  <div id="listePaiements">
+    <p style="color: var(--text-muted); font-size: 14px;">Chargement...</p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+
+const LIBELLES_TYPE = { inscription: 'Inscription', abonnement: 'Abonnement' };
+const LIBELLES_STATUT = { en_attente: 'attente', reussi: 'reussi', echoue: 'echoue' };
+const LIBELLES_OPERATEUR = { airtel_money: 'Airtel Money', mynita: 'MyNITA', amanata: 'AmanaTa' };
+
+async function charger() {
+  const conteneur = document.getElementById('listePaiements');
+  try {
+    const { paiements } = await appelApi('/paiements/mes-paiements');
+    if (paiements.length === 0) {
+      conteneur.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">Aucun paiement pour le moment.</p>';
+      return;
+    }
+    conteneur.innerHTML = '';
+    paiements.forEach((p) => {
+      const carte = document.createElement('div');
+      carte.className = 'carte';
+      const date = new Date(p.cree_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const classeEtiquette = p.statut === 'reussi' ? 'reussi' : (p.statut === 'echoue' ? 'attente' : 'attente');
+      carte.innerHTML = `
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+          <p style="font-size: 14px; margin: 0;">${LIBELLES_TYPE[p.type] || p.type} - ${p.programme_nom}</p>
+          <span style="font-size: 16px; font-weight: 600;">${Number(p.montant).toLocaleString('fr-FR')} F</span>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 6px;">
+          <span style="font-size: 12px; color: var(--text-muted);">${LIBELLES_OPERATEUR[p.operateur] || p.operateur} - ${date}</span>
+          <span class="etiquette ${classeEtiquette}">${p.statut === 'reussi' ? 'Réussi' : (p.statut === 'echoue' ? 'Échoué' : 'En attente')}</span>
+        </div>
+      `;
+      conteneur.appendChild(carte);
+    });
+  } catch (err) {
+    conteneur.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+if (utilisateur) charger();
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Notifications</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <a href="tableau-de-bord.html" class="lien" style="text-align: left; margin: 0 0 10px;">&larr; Retour</a>
+    <h1 style="font-size: 19px;">Notifications</h1>
+  </div>
+
+  <div id="listeNotifications">
+    <p style="color: var(--text-muted); font-size: 14px;">Chargement...</p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion();
+
+async function charger() {
+  const conteneur = document.getElementById('listeNotifications');
+  try {
+    const { notifications } = await appelApi('/notifications');
+    if (notifications.length === 0) {
+      conteneur.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">Aucune notification pour le moment.</p>';
+      return;
+    }
+    conteneur.innerHTML = '';
+    notifications.forEach((n) => {
+      const carte = document.createElement('div');
+      carte.className = 'carte';
+      const date = new Date(n.cree_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      carte.innerHTML = `
+        <p style="font-size: 14px; margin: 0;">${n.message}</p>
+        <p style="font-size: 11px; color: var(--text-muted); margin: 6px 0 0;">${date}</p>
+      `;
+      conteneur.appendChild(carte);
+    });
+    appelApi('/notifications/lues', { method: 'PATCH' }).catch(() => {});
+  } catch (err) {
+    conteneur.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+if (utilisateur) charger();
+</script>
+</body>
+</html>

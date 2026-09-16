@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Gestion</title>
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-muted); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="ecran">
+  <div class="entete" style="display: flex; align-items: center; justify-content: space-between;">
+    <div>
+      <p class="marque" style="font-size: 18px;">Espace gestionnaire</p>
+      <p id="nomGestionnaire"></p>
+    </div>
+    <button class="bouton-secondaire" style="width: auto; padding: 6px 12px; font-size: 12px;" onclick="deconnecter()">Quitter</button>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 4px;">Enseignants en attente de validation</p>
+    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px;">Un compte enseignant ne peut pas se connecter tant qu'il n'est pas validé ici.</p>
+    <div id="zoneEnAttente"><p style="color: var(--text-muted); font-size: 13px;">Chargement...</p></div>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 4px;">Questions sur la plateforme</p>
+    <p id="resumeQuestions" style="font-size: 13px; color: var(--text-muted); margin: 0;">Chargement...</p>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Progression des étudiants</p>
+    <div id="zoneProgression"><p style="color: var(--text-muted); font-size: 13px;">Chargement...</p></div>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 4px;">Absences aux examens</p>
+    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px;">Étudiants n'ayant pas soumis leur copie dans les temps (note : 0).</p>
+    <div id="zoneAbsences"><p style="color: var(--text-muted); font-size: 13px;">Chargement...</p></div>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Activité des enseignants</p>
+    <div id="zoneEnseignants"><p style="color: var(--text-muted); font-size: 13px;">Chargement...</p></div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('admin');
+if (utilisateur) document.getElementById('nomGestionnaire').textContent = utilisateur.nom;
+
+async function chargerEnAttente() {
+  const zone = document.getElementById('zoneEnAttente');
+  try {
+    const { enseignants } = await appelApi('/admin/enseignants/en-attente');
+    if (enseignants.length === 0) {
+      zone.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucune demande en attente.</p>';
+      return;
+    }
+    zone.innerHTML = '';
+    enseignants.forEach((e) => {
+      const bloc = document.createElement('div');
+      bloc.className = 'question';
+      bloc.innerHTML = `
+        <p style="font-size: 14px; margin: 0 0 2px;">${e.nom}</p>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px;">${e.telephone}</p>
+        <div class="grille-2">
+          <button class="bouton-principal" style="font-size: 13px;">Valider</button>
+          <button class="bouton-secondaire" style="font-size: 13px;">Refuser</button>
+        </div>
+      `;
+      const [btnValider, btnRefuser] = bloc.querySelectorAll('button');
+      btnValider.addEventListener('click', () => validerEnseignant(e.id, 'valide', bloc));
+      btnRefuser.addEventListener('click', () => validerEnseignant(e.id, 'refuse', bloc));
+      zone.appendChild(bloc);
+    });
+  } catch (err) {
+    zone.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+async function validerEnseignant(id, decision, bloc) {
+  try {
+    await appelApi(`/admin/enseignants/${id}/validation`, {
+      method: 'PATCH',
+      body: JSON.stringify({ decision })
+    });
+    bloc.remove();
+    chargerEnseignants();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function chargerQuestions() {
+  try {
+    const { statistiques } = await appelApi('/admin/questions');
+    document.getElementById('resumeQuestions').textContent =
+      `${statistiques.repondues} question(s) répondue(s), ${statistiques.en_attente} en attente`;
+  } catch (err) {
+    document.getElementById('resumeQuestions').textContent = err.message;
+  }
+}
+
+async function chargerProgression() {
+  const zone = document.getElementById('zoneProgression');
+  try {
+    const { progression } = await appelApi('/admin/progression');
+    if (progression.length === 0) {
+      zone.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucun étudiant inscrit pour le moment.</p>';
+      return;
+    }
+    const lignes = progression.map((p) => `
+      <tr>
+        <td>${p.nom}</td>
+        <td>${p.filiere}</td>
+        <td>${p.modules_termines} / ${p.total_modules}</td>
+      </tr>
+    `).join('');
+    zone.innerHTML = `<table><thead><tr><th>Étudiant</th><th>Filière</th><th>Modules terminés</th></tr></thead><tbody>${lignes}</tbody></table>`;
+  } catch (err) {
+    zone.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+async function chargerAbsences() {
+  const zone = document.getElementById('zoneAbsences');
+  try {
+    const { absences } = await appelApi('/admin/absences');
+    if (absences.length === 0) {
+      zone.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucune absence enregistrée.</p>';
+      return;
+    }
+    const lignes = absences.map((a) => `
+      <tr>
+        <td>${a.etudiant_nom}</td>
+        <td>${a.filiere}</td>
+        <td>${a.sujet_titre}</td>
+      </tr>
+    `).join('');
+    zone.innerHTML = `<table><thead><tr><th>Étudiant</th><th>Filière</th><th>Sujet</th></tr></thead><tbody>${lignes}</tbody></table>`;
+  } catch (err) {
+    zone.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+async function chargerEnseignants() {
+  const zone = document.getElementById('zoneEnseignants');
+  try {
+    const { enseignants } = await appelApi('/admin/enseignants');
+    if (enseignants.length === 0) {
+      zone.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucun enseignant inscrit pour le moment.</p>';
+      return;
+    }
+    const lignes = enseignants.map((e) => `
+      <tr>
+        <td>${e.nom}</td>
+        <td>${e.sujets_publies}</td>
+      </tr>
+    `).join('');
+    zone.innerHTML = `<table><thead><tr><th>Enseignant</th><th>Sujets publiés</th></tr></thead><tbody>${lignes}</tbody></table>`;
+  } catch (err) {
+    zone.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+if (utilisateur) {
+  chargerEnAttente();
+  chargerQuestions();
+  chargerProgression();
+  chargerAbsences();
+  chargerEnseignants();
+}
+</script>
+</body>
+</html>

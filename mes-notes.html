@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Mes notes</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <a href="tableau-de-bord.html" class="lien" style="text-align: left; margin: 0 0 10px;">&larr; Retour</a>
+    <h1 style="font-size: 19px;">Mes notes</h1>
+  </div>
+
+  <div id="listeNotes">
+    <p style="color: var(--text-muted); font-size: 14px;">Chargement...</p>
+  </div>
+
+  <button class="bouton-secondaire" id="btnTelechargerPdf" style="margin-top: 8px;">Télécharger en PDF</button>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+
+document.getElementById('btnTelechargerPdf').addEventListener('click', async () => {
+  try {
+    const enTetes = {};
+    const token = obtenirToken();
+    if (token) enTetes.Authorization = `Bearer ${token}`;
+
+    const reponse = await fetch(`${API_BASE}/sujets/mes-notes/pdf`, { headers: enTetes });
+    if (!reponse.ok) throw new Error('Impossible de générer le PDF');
+
+    const blob = await reponse.blob();
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = 'releve-de-notes.pdf';
+    lien.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(err.message);
+  }
+});
+const utilisateur = exigerConnexion('etudiant');
+
+async function charger() {
+  const conteneur = document.getElementById('listeNotes');
+  try {
+    const { notes } = await appelApi('/sujets/mes-notes');
+    if (notes.length === 0) {
+      conteneur.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">Aucune note publiée pour le moment.</p>';
+      return;
+    }
+    conteneur.innerHTML = '';
+    notes.forEach((n) => {
+      const carte = document.createElement('div');
+      carte.className = 'carte';
+      carte.innerHTML = `
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+          <p style="font-size: 14px; margin: 0;">${n.sujet_titre}</p>
+          <span style="font-size: 18px; font-weight: 600;">${n.note}/20</span>
+        </div>
+        ${n.commentaire ? `<p style="font-size: 13px; color: var(--text-muted); margin: 8px 0 0;">${n.commentaire}</p>` : ''}
+      `;
+      conteneur.appendChild(carte);
+    });
+  } catch (err) {
+    conteneur.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+if (utilisateur) charger();
+</script>
+</body>
+</html>

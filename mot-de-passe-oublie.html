@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Mot de passe oublié</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <p class="marque">Mon école BTS</p>
+    <p>Mot de passe oublié</p>
+  </div>
+
+  <div class="carte" id="etapeTelephone">
+    <label for="telephone">Ton numéro de téléphone</label>
+    <input type="tel" id="telephone" placeholder="97 XX XX XX" />
+    <p class="erreur masque" id="erreur1"></p>
+    <button class="bouton-principal" id="btnEnvoyer">Recevoir un code</button>
+  </div>
+
+  <div class="carte masque" id="etapeCode">
+    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 12px;" id="texteOtp">Un code à 6 chiffres a été envoyé par SMS.</p>
+    <label for="code">Code reçu par SMS</label>
+    <input type="text" id="code" inputmode="numeric" maxlength="6" placeholder="123456" />
+    <label for="nouveauMotDePasse">Nouveau mot de passe</label>
+    <input type="password" id="nouveauMotDePasse" />
+    <p class="erreur masque" id="erreur2"></p>
+    <button class="bouton-principal" id="btnReinitialiser">Changer le mot de passe</button>
+  </div>
+
+  <div class="carte masque" id="etapeDone" style="text-align: center;">
+    <p style="font-size: 17px; font-weight: 600; margin: 0 0 6px;">Mot de passe changé</p>
+    <a href="index.html" class="bouton-principal" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">Se connecter</a>
+  </div>
+
+  <a href="index.html" class="lien">Retour à la connexion</a>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+let telephoneCourant = null;
+
+document.getElementById('btnEnvoyer').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur1');
+  const telephone = document.getElementById('telephone').value.trim();
+  if (!telephone) {
+    erreurEl.textContent = 'Entre ton numéro de téléphone';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  try {
+    const reponse = await appelApi('/auth/otp/envoyer', {
+      method: 'POST',
+      body: JSON.stringify({ telephone })
+    });
+    telephoneCourant = telephone;
+    if (reponse.avertissement) {
+      document.getElementById('texteOtp').textContent = `Aucun SMS réel envoyé (fournisseur non configuré). Code de test : ${reponse.code_test}`;
+    }
+    document.getElementById('etapeTelephone').classList.add('masque');
+    document.getElementById('etapeCode').classList.remove('masque');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+document.getElementById('btnReinitialiser').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur2');
+  const code = document.getElementById('code').value.trim();
+  const nouveau_mot_de_passe = document.getElementById('nouveauMotDePasse').value;
+
+  if (!code || nouveau_mot_de_passe.length < 4) {
+    erreurEl.textContent = 'Entre le code reçu et un mot de passe (4 caractères minimum)';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  try {
+    await appelApi('/auth/mot-de-passe-oublie', {
+      method: 'POST',
+      body: JSON.stringify({ telephone: telephoneCourant, code, nouveau_mot_de_passe })
+    });
+    document.getElementById('etapeCode').classList.add('masque');
+    document.getElementById('etapeDone').classList.remove('masque');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+</script>
+</body>
+</html>

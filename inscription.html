@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Inscription</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <p class="marque">Mon école BTS</p>
+    <p id="sousTitre">Étape 1 sur 4 - Tes informations</p>
+  </div>
+
+  <div class="carte">
+
+    <div id="etape1">
+      <label for="nom">Nom complet</label>
+      <input type="text" id="nom" required />
+
+      <label for="telephone">Numéro de téléphone</label>
+      <input type="tel" id="telephone" placeholder="97 XX XX XX" required />
+      <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0;">Lié à ton compte, un seul appareil actif à la fois.</p>
+
+      <label for="motDePasse">Mot de passe</label>
+      <input type="password" id="motDePasse" required />
+
+      <p class="erreur masque" id="erreur1"></p>
+      <button class="bouton-principal" id="btnEtape1">Continuer</button>
+    </div>
+
+    <div id="etape2" class="masque">
+      <p style="font-size: 14px; margin: 0 0 4px;">Choisis ta filière BTS</p>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 12px;">Tu auras accès aux modules propres à cette filière.</p>
+      <div class="grille-2" id="filieres"></div>
+      <p class="erreur masque" id="erreur2"></p>
+      <button class="bouton-principal" id="btnEtape2">Continuer</button>
+    </div>
+
+    <div id="etapeOtp" class="masque">
+      <p style="font-size: 14px; margin: 0 0 4px;">Vérifie ton numéro</p>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 12px;" id="texteOtp">Un code à 6 chiffres a été envoyé par SMS.</p>
+      <label for="codeOtp">Code reçu par SMS</label>
+      <input type="text" id="codeOtp" inputmode="numeric" maxlength="6" placeholder="123456" />
+      <p class="erreur masque" id="erreurOtp"></p>
+      <button class="bouton-principal" id="btnVerifierOtp">Vérifier</button>
+      <button class="bouton-secondaire" id="btnRenvoyerOtp" style="margin-top: 8px;">Renvoyer le code</button>
+    </div>
+
+    <div id="etape3" class="masque">
+      <div class="carte" style="background: var(--bg-alt); display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px;">
+        <span style="font-size: 13px; color: var(--text-muted);">Frais d'inscription</span>
+        <span style="font-size: 20px; font-weight: 600;">500 F</span>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px;">Payer avec</p>
+      <button class="bouton-secondaire" id="btnPayer">Airtel Money</button>
+      <p class="erreur masque" id="erreur3"></p>
+      <button class="bouton-principal masque" id="btnFinaliser">Confirmer le paiement</button>
+    </div>
+
+    <div id="etapeDone" class="masque" style="text-align: center; padding: 8px 0;">
+      <p style="font-size: 17px; font-weight: 600; margin: 0 0 6px;">Inscription confirmée</p>
+      <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px;">Choisis maintenant ton abonnement mensuel pour accéder aux modules.</p>
+      <a href="abonnement.html" class="bouton-principal" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">Voir l'abonnement</a>
+    </div>
+
+  </div>
+  <a href="index.html" class="lien">Déjà un compte ? Se connecter</a>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const FILIERES = [
+  { code: 'PMO', nom: 'PMO' },
+  { code: 'GRH', nom: 'GRH' },
+  { code: 'CGE', nom: 'CGE' },
+  { code: 'TL', nom: 'TL' },
+  { code: 'CE', nom: 'CE' }
+];
+
+let filiereChoisie = null;
+let idFiliereReel = null;
+let nouvelUtilisateurId = null;
+
+const conteneurFilieres = document.getElementById('filieres');
+FILIERES.forEach((f) => {
+  const bouton = document.createElement('button');
+  bouton.className = 'bouton-filiere';
+  bouton.textContent = f.nom;
+  bouton.addEventListener('click', () => {
+    document.querySelectorAll('.bouton-filiere').forEach((b) => b.classList.remove('selectionne'));
+    bouton.classList.add('selectionne');
+    filiereChoisie = f.code;
+    document.getElementById('erreur2').classList.add('masque');
+  });
+  conteneurFilieres.appendChild(bouton);
+});
+
+function afficherEtape(numero) {
+  ['etape1', 'etape2', 'etapeOtp', 'etape3', 'etapeDone'].forEach((id) => document.getElementById(id).classList.add('masque'));
+  document.getElementById(numero).classList.remove('masque');
+  const titres = {
+    etape1: 'Étape 1 sur 4 - Tes informations',
+    etape2: 'Étape 2 sur 4 - Ta filière',
+    etapeOtp: 'Étape 3 sur 4 - Vérification',
+    etape3: 'Étape 4 sur 4 - Paiement'
+  };
+  if (titres[numero]) document.getElementById('sousTitre').textContent = titres[numero];
+}
+
+document.getElementById('btnEtape1').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur1');
+  const nom = document.getElementById('nom').value.trim();
+  const telephone = document.getElementById('telephone').value.trim();
+  const mot_de_passe = document.getElementById('motDePasse').value;
+
+  if (!nom || !telephone || mot_de_passe.length < 4) {
+    erreurEl.textContent = 'Remplis tous les champs (mot de passe : 4 caractères minimum)';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  erreurEl.classList.add('masque');
+  window._brouillonInscription = { nom, telephone, mot_de_passe };
+  afficherEtape('etape2');
+});
+
+document.getElementById('btnEtape2').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur2');
+  if (!filiereChoisie) {
+    erreurEl.textContent = 'Choisis une filière avant de continuer';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+
+  try {
+    // Récupère l'id réel de la filière choisie depuis l'API
+    const { filieres } = await appelApi('/filieres');
+    const filiere = filieres.find((f) => f.code === filiereChoisie);
+    idFiliereReel = filiere ? filiere.id : null;
+
+    const { utilisateur } = await appelApi('/auth/inscription', {
+      method: 'POST',
+      body: JSON.stringify({ ...window._brouillonInscription, filiere_id: idFiliereReel })
+    });
+    nouvelUtilisateurId = utilisateur.id;
+
+    await envoyerOtp();
+    afficherEtape('etapeOtp');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+async function envoyerOtp() {
+  const reponse = await appelApi('/auth/otp/envoyer', {
+    method: 'POST',
+    body: JSON.stringify({ telephone: window._brouillonInscription.telephone })
+  });
+  const texteEl = document.getElementById('texteOtp');
+  if (reponse.avertissement) {
+    // Aucun fournisseur SMS configuré (voir src/utils/sms.js) : le code est
+    // affiché ici uniquement pour permettre de tester le parcours.
+    texteEl.textContent = `Aucun SMS réel envoyé (fournisseur non configuré). Code de test : ${reponse.code_test}`;
+  } else {
+    texteEl.textContent = 'Un code à 6 chiffres a été envoyé par SMS.';
+  }
+}
+
+document.getElementById('btnRenvoyerOtp').addEventListener('click', async () => {
+  try {
+    await envoyerOtp();
+  } catch (err) {
+    document.getElementById('erreurOtp').textContent = err.message;
+    document.getElementById('erreurOtp').classList.remove('masque');
+  }
+});
+
+document.getElementById('btnVerifierOtp').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurOtp');
+  const code = document.getElementById('codeOtp').value.trim();
+  if (!code) {
+    erreurEl.textContent = 'Entre le code reçu';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  try {
+    await appelApi('/auth/otp/verifier', {
+      method: 'POST',
+      body: JSON.stringify({ telephone: window._brouillonInscription.telephone, code })
+    });
+    erreurEl.classList.add('masque');
+    afficherEtape('etape3');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+document.getElementById('btnPayer').addEventListener('click', () => {
+  document.getElementById('btnFinaliser').classList.remove('masque');
+});
+
+document.getElementById('btnFinaliser').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur3');
+  try {
+    // À ce stade l'étudiant n'a pas encore de jeton (il ne s'est pas encore
+    // connecté) : on se connecte d'abord pour pouvoir appeler /paiements.
+    const { token, utilisateur } = await appelApi('/auth/connexion', {
+      method: 'POST',
+      body: JSON.stringify(window._brouillonInscription)
+    });
+    definirSession(token, utilisateur);
+
+    const { programmes } = await appelApi('/programmes');
+    const programmeStandard = programmes.find((p) => p.code === 'standard');
+
+    await appelApi('/paiements', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'inscription',
+        operateur: 'airtel_money',
+        telephone_client: window._brouillonInscription.telephone,
+        programme_id: programmeStandard.id
+      })
+    });
+
+    afficherEtape('etapeDone');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+</script>
+</body>
+</html>

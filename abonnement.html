@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Abonnement</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <p class="marque">Mon école BTS</p>
+    <p id="titreAbonnement">Abonnement</p>
+  </div>
+
+  <div class="carte" id="carteFormulaire">
+    <div class="carte" style="background: var(--bg-alt); display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px;">
+      <span style="font-size: 13px; color: var(--text-muted);" id="libelleAbonnement">Abonnement</span>
+      <span style="font-size: 20px; font-weight: 600;" id="montantAbonnement">-</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px;">Payer avec</p>
+    <button class="bouton-secondaire" id="btnPayer">Airtel Money</button>
+    <p class="erreur masque" id="erreur"></p>
+    <button class="bouton-principal masque" id="btnFinaliser">Confirmer le paiement</button>
+  </div>
+
+  <div id="carteDone" class="carte masque" style="text-align: center;">
+    <p style="font-size: 17px; font-weight: 600; margin: 0 0 6px;">Abonnement activé</p>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px;" id="texteDone"></p>
+    <a href="tableau-de-bord.html" class="bouton-principal" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">Accéder aux modules</a>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+const codeProgramme = new URLSearchParams(window.location.search).get('programme') || 'standard';
+let programmeActuel = null;
+
+async function chargerProgramme() {
+  const { programmes } = await appelApi('/programmes');
+  programmeActuel = programmes.find((p) => p.code === codeProgramme);
+  if (!programmeActuel) return;
+
+  document.getElementById('titreAbonnement').textContent = programmeActuel.nom;
+  document.getElementById('libelleAbonnement').textContent =
+    programmeActuel.type_abonnement === 'mensuel' ? 'Abonnement - 1 mois' : 'Abonnement - session complète';
+  document.getElementById('montantAbonnement').textContent = `${Number(programmeActuel.frais_abonnement).toLocaleString('fr-FR')} F`;
+}
+
+document.getElementById('btnPayer').addEventListener('click', () => {
+  document.getElementById('btnFinaliser').classList.remove('masque');
+});
+
+document.getElementById('btnFinaliser').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur');
+  const btn = document.getElementById('btnFinaliser');
+  btn.disabled = true;
+  try {
+    await appelApi('/paiements', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'abonnement',
+        operateur: 'airtel_money',
+        telephone_client: utilisateur.telephone,
+        programme_id: programmeActuel.id
+      })
+    });
+    document.getElementById('texteDone').textContent = programmeActuel.type_abonnement === 'mensuel'
+      ? 'Valable un mois à partir d\'aujourd\'hui.'
+      : 'Valable jusqu\'au 15 août.';
+    document.getElementById('carteFormulaire').classList.add('masque');
+    document.getElementById('carteDone').classList.remove('masque');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+if (utilisateur) chargerProgramme();
+</script>
+</body>
+</html>

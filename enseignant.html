@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Espace enseignant</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete" style="display: flex; align-items: center; justify-content: space-between;">
+    <div>
+      <p class="marque" style="font-size: 18px;">Espace enseignant</p>
+      <p id="nomEnseignant"></p>
+    </div>
+    <button class="bouton-secondaire" style="width: auto; padding: 6px 12px; font-size: 12px;" onclick="deconnecter()">Quitter</button>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Ajouter un module</p>
+    <label for="mFiliere">Filière</label>
+    <select id="mFiliere"></select>
+    <label for="mProgramme">Programme</label>
+    <select id="mProgramme"></select>
+    <label for="mMatiere">Matière</label>
+    <input type="text" id="mMatiere" placeholder="ex. Comptabilité générale" />
+    <label for="mTitre">Titre du module</label>
+    <input type="text" id="mTitre" />
+    <label for="mOrdre">Ordre dans la matière</label>
+    <input type="number" id="mOrdre" value="1" min="1" />
+    <label for="mAudio">Lien audio explicatif</label>
+    <input type="text" id="mAudio" placeholder="URL du fichier audio" />
+    <label for="mSupport">Lien du support (PDF)</label>
+    <input type="text" id="mSupport" placeholder="URL du support" />
+    <p class="erreur masque" id="erreurModule"></p>
+    <button class="bouton-principal" id="btnModule">Publier le module</button>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 4px;">Vidéo de synthèse d'un module</p>
+    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px;">Durée max 30 minutes, taille max 50 Mo.</p>
+    <label for="vModuleId">Identifiant du module concerné</label>
+    <input type="number" id="vModuleId" placeholder="Voir la liste des modules" />
+    <label for="vFichier">Fichier vidéo</label>
+    <input type="file" id="vFichier" accept="video/*" />
+    <p id="vInfos" style="font-size: 12px; color: var(--text-muted); margin: 8px 0 0;"></p>
+    <p class="erreur masque" id="erreurVideo"></p>
+    <button class="bouton-principal" id="btnVideo" disabled>Envoyer la vidéo</button>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Publier un sujet d'examen</p>
+    <label for="sModuleId">Identifiant du module concerné</label>
+    <input type="number" id="sModuleId" placeholder="Voir la liste des modules" />
+    <label for="sTitre">Intitulé du sujet</label>
+    <input type="text" id="sTitre" placeholder="ex. Étude de cas comptable" />
+    <label for="sFichier">Lien du sujet (PDF)</label>
+    <input type="text" id="sFichier" placeholder="URL du sujet" />
+    <label for="sDuree">Temps de composition (minutes)</label>
+    <input type="number" id="sDuree" value="120" min="1" />
+    <p class="erreur masque" id="erreurSujet"></p>
+    <button class="bouton-principal" id="btnSujet">Publier le sujet</button>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 4px;">Corriger les copies</p>
+    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px;">Choisis un sujet pour voir et noter les copies soumises.</p>
+    <select id="selectSujet" style="margin-bottom: 10px;"><option value="">Chargement des sujets...</option></select>
+    <div id="listeCopies"></div>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Questions en attente</p>
+    <div id="listeQuestions">
+      <p style="color: var(--text-muted); font-size: 13px;">Chargement...</p>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('enseignant');
+if (utilisateur) document.getElementById('nomEnseignant').textContent = utilisateur.nom;
+
+async function chargerFilieres() {
+  try {
+    const { filieres } = await appelApi('/filieres');
+    const select = document.getElementById('mFiliere');
+    select.innerHTML = filieres.map((f) => `<option value="${f.id}">${f.code} - ${f.nom}</option>`).join('');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function chargerProgrammes() {
+  try {
+    const { programmes } = await appelApi('/programmes');
+    const select = document.getElementById('mProgramme');
+    select.innerHTML = programmes.map((p) => `<option value="${p.id}">${p.nom}</option>`).join('');
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+document.getElementById('btnModule').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurModule');
+  try {
+    await appelApi('/modules', {
+      method: 'POST',
+      body: JSON.stringify({
+        filiere_id: document.getElementById('mFiliere').value,
+        programme_id: document.getElementById('mProgramme').value,
+        matiere: document.getElementById('mMatiere').value.trim(),
+        titre: document.getElementById('mTitre').value.trim(),
+        ordre: Number(document.getElementById('mOrdre').value) || 1,
+        audio_url: document.getElementById('mAudio').value.trim(),
+        support_url: document.getElementById('mSupport').value.trim()
+      })
+    });
+    erreurEl.classList.add('masque');
+    document.getElementById('mMatiere').value = '';
+    document.getElementById('mTitre').value = '';
+    document.getElementById('mAudio').value = '';
+    document.getElementById('mSupport').value = '';
+    alert('Module publié.');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+const DUREE_MAX_SECONDES = 30 * 60;
+const TAILLE_MAX_OCTETS = 50 * 1024 * 1024;
+let videoValidee = null; // { fichier, dureeSecondes }
+
+document.getElementById('vFichier').addEventListener('change', (e) => {
+  const infosEl = document.getElementById('vInfos');
+  const erreurEl = document.getElementById('erreurVideo');
+  const btn = document.getElementById('btnVideo');
+  const fichier = e.target.files[0];
+
+  videoValidee = null;
+  btn.disabled = true;
+  erreurEl.classList.add('masque');
+  infosEl.textContent = '';
+
+  if (!fichier) return;
+
+  if (fichier.size > TAILLE_MAX_OCTETS) {
+    erreurEl.textContent = `Le fichier dépasse 50 Mo (${(fichier.size / (1024 * 1024)).toFixed(1)} Mo)`;
+    erreurEl.classList.remove('masque');
+    return;
+  }
+
+  // Lit la durée directement depuis le fichier vidéo, dans le navigateur
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.onloadedmetadata = () => {
+    URL.revokeObjectURL(video.src);
+    const duree = video.duration;
+    if (duree > DUREE_MAX_SECONDES) {
+      erreurEl.textContent = `La vidéo dure ${Math.round(duree / 60)} min, le maximum est 30 min`;
+      erreurEl.classList.remove('masque');
+      return;
+    }
+    videoValidee = { fichier, dureeSecondes: Math.round(duree) };
+    infosEl.textContent = `Durée : ${Math.round(duree / 60)} min - Taille : ${(fichier.size / (1024 * 1024)).toFixed(1)} Mo`;
+    btn.disabled = false;
+  };
+  video.onerror = () => {
+    erreurEl.textContent = 'Impossible de lire ce fichier vidéo';
+    erreurEl.classList.remove('masque');
+  };
+  video.src = URL.createObjectURL(fichier);
+});
+
+document.getElementById('btnVideo').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurVideo');
+  const btn = document.getElementById('btnVideo');
+  const idModule = document.getElementById('vModuleId').value;
+
+  if (!idModule) {
+    erreurEl.textContent = 'Indique l\'identifiant du module concerné';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  if (!videoValidee) return;
+
+  const formData = new FormData();
+  formData.append('video', videoValidee.fichier);
+  formData.append('duree_secondes', videoValidee.dureeSecondes);
+
+  btn.disabled = true;
+  btn.textContent = 'Envoi en cours...';
+  try {
+    await envoyerFichier(`/modules/${idModule}/video-synthese`, formData);
+    erreurEl.classList.add('masque');
+    document.getElementById('vFichier').value = '';
+    document.getElementById('vInfos').textContent = '';
+    videoValidee = null;
+    alert('Vidéo de synthèse envoyée.');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Envoyer la vidéo';
+  }
+});
+
+document.getElementById('btnSujet').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurSujet');
+  try {
+    await appelApi('/sujets', {
+      method: 'POST',
+      body: JSON.stringify({
+        module_id: Number(document.getElementById('sModuleId').value),
+        titre: document.getElementById('sTitre').value.trim(),
+        fichier_url: document.getElementById('sFichier').value.trim(),
+        duree_minutes: Number(document.getElementById('sDuree').value)
+      })
+    });
+    erreurEl.classList.add('masque');
+    document.getElementById('sTitre').value = '';
+    document.getElementById('sFichier').value = '';
+    alert('Sujet publié. Le chronomètre démarre dès maintenant pour les étudiants.');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+async function chargerSujets() {
+  const select = document.getElementById('selectSujet');
+  try {
+    const { sujets } = await appelApi('/sujets/mes-sujets');
+    if (sujets.length === 0) {
+      select.innerHTML = '<option value="">Aucun sujet publié</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">Choisir un sujet...</option>' + sujets.map((s) =>
+      `<option value="${s.id}">${s.titre} - ${s.a_corriger} à corriger sur ${s.total_copies}</option>`
+    ).join('');
+  } catch (err) {
+    select.innerHTML = `<option value="">${err.message}</option>`;
+  }
+}
+
+document.getElementById('selectSujet').addEventListener('change', (e) => {
+  if (e.target.value) chargerCopies(e.target.value);
+  else document.getElementById('listeCopies').innerHTML = '';
+});
+
+async function chargerCopies(idSujet) {
+  const conteneur = document.getElementById('listeCopies');
+  conteneur.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Chargement...</p>';
+  try {
+    const { copies } = await appelApi(`/sujets/${idSujet}/copies`);
+    if (copies.length === 0) {
+      conteneur.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucune copie pour ce sujet.</p>';
+      return;
+    }
+    conteneur.innerHTML = '';
+    copies.forEach((c) => {
+      const bloc = document.createElement('div');
+      bloc.className = 'question';
+
+      if (c.statut === 'non_soumis') {
+        bloc.innerHTML = `
+          <p style="font-size: 14px; margin: 0 0 2px;">${c.etudiant_nom}</p>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Non soumise dans les temps - note automatique : 0</p>
+        `;
+      } else if (c.note !== null) {
+        bloc.innerHTML = `
+          <p style="font-size: 14px; margin: 0 0 2px;">${c.etudiant_nom}</p>
+          <p style="font-size: 13px; color: var(--success); margin: 0;">Note publiée : ${c.note}/20</p>
+        `;
+      } else {
+        bloc.innerHTML = `
+          <p style="font-size: 14px; margin: 0 0 2px;">${c.etudiant_nom}</p>
+          <a href="${c.fichier_url}" target="_blank" style="font-size: 12px; color: var(--accent);">Voir la copie</a>
+          <div class="grille-2" style="margin-top: 10px;">
+            <input type="number" min="0" max="20" placeholder="Note /20" class="champNote" />
+            <button class="bouton-principal" style="font-size: 13px;">Publier la note</button>
+          </div>
+          <input type="text" placeholder="Commentaire (optionnel)" class="champCommentaire" style="margin-top: 8px;" />
+        `;
+        bloc.querySelector('button').addEventListener('click', async () => {
+          const note = Number(bloc.querySelector('.champNote').value);
+          const commentaire = bloc.querySelector('.champCommentaire').value.trim();
+          if (bloc.querySelector('.champNote').value === '' || note < 0 || note > 20) {
+            alert('Entre une note valide entre 0 et 20');
+            return;
+          }
+          try {
+            await appelApi(`/sujets/copies/${c.id}/note`, {
+              method: 'PATCH',
+              body: JSON.stringify({ note, commentaire })
+            });
+            chargerCopies(idSujet);
+            chargerSujets();
+          } catch (err) {
+            alert(err.message);
+          }
+        });
+      }
+      conteneur.appendChild(bloc);
+    });
+  } catch (err) {
+    conteneur.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+async function chargerQuestions() {
+  const conteneur = document.getElementById('listeQuestions');
+  try {
+    const { questions } = await appelApi('/questions/en-attente');
+    if (questions.length === 0) {
+      conteneur.innerHTML = '<p style="color: var(--text-muted); font-size: 13px;">Aucune question en attente.</p>';
+      return;
+    }
+    conteneur.innerHTML = '';
+    questions.forEach((q) => {
+      const bloc = document.createElement('div');
+      bloc.className = 'question';
+      bloc.innerHTML = `
+        <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 4px;">${q.etudiant_nom} - ${q.module_titre}</p>
+        <p style="font-size: 14px; margin: 0 0 10px;">${q.contenu_texte}</p>
+        <input type="text" placeholder="Réponse en texte" class="reponseTexte" style="margin-bottom: 8px;" />
+        <button class="bouton-secondaire" style="font-size: 13px;">Envoyer la réponse</button>
+      `;
+      bloc.querySelector('button').addEventListener('click', async () => {
+        const texte = bloc.querySelector('.reponseTexte').value.trim();
+        if (!texte) return;
+        try {
+          await appelApi(`/questions/${q.id}/reponse`, {
+            method: 'PATCH',
+            body: JSON.stringify({ reponse_texte: texte })
+          });
+          bloc.remove();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+      conteneur.appendChild(bloc);
+    });
+  } catch (err) {
+    conteneur.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+if (utilisateur) {
+  chargerFilieres();
+  chargerProgrammes();
+  chargerSujets();
+  chargerQuestions();
+}
+</script>
+</body>
+</html>

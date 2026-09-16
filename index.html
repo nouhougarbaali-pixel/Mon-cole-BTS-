@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Connexion</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <p class="marque">Mon école BTS</p>
+    <p>Préparation BTS - PMO, GRH, CGE, TL, CE</p>
+  </div>
+
+  <div class="carte">
+    <h2 style="font-size: 17px; margin-bottom: 4px;">Connexion</h2>
+    <form id="formConnexion">
+      <label for="telephone">Numéro de téléphone</label>
+      <input type="tel" id="telephone" placeholder="97 XX XX XX" required />
+
+      <label for="motDePasse">Mot de passe</label>
+      <input type="password" id="motDePasse" required />
+
+      <p class="erreur masque" id="erreur"></p>
+      <button type="submit" class="bouton-principal" id="btnConnexion">Se connecter</button>
+    </form>
+    <a href="inscription.html" class="lien">Pas encore de compte ? S'inscrire</a>
+    <a href="enseignant-inscription.html" class="lien">Tu es enseignant ? Crée ton compte ici</a>
+    <a href="mot-de-passe-oublie.html" class="lien">Mot de passe oublié ?</a>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+document.getElementById('formConnexion').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const erreurEl = document.getElementById('erreur');
+  const btn = document.getElementById('btnConnexion');
+  erreurEl.classList.add('masque');
+  btn.disabled = true;
+  btn.textContent = 'Connexion...';
+
+  try {
+    const telephone = document.getElementById('telephone').value.trim();
+    const mot_de_passe = document.getElementById('motDePasse').value;
+    const { token, utilisateur } = await appelApi('/auth/connexion', {
+      method: 'POST',
+      body: JSON.stringify({ telephone, mot_de_passe })
+    });
+    definirSession(token, utilisateur);
+    if (utilisateur.role === 'enseignant') {
+      window.location.href = 'enseignant.html';
+    } else if (utilisateur.role === 'admin') {
+      window.location.href = 'gestion.html';
+    } else {
+      window.location.href = 'tableau-de-bord.html';
+    }
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Se connecter';
+  }
+});
+</script>
+</body>
+</html>

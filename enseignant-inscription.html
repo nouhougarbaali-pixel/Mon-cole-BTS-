@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Inscription enseignant</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <p class="marque">Mon école BTS</p>
+    <p>Inscription enseignant vacataire</p>
+  </div>
+
+  <div class="carte" id="carteFormulaire">
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 14px;">Inscription gratuite. Un compte est lié à un seul numéro de téléphone et non transférable, comme pour les étudiants.</p>
+
+    <label for="nom">Nom complet</label>
+    <input type="text" id="nom" required />
+
+    <label for="telephone">Numéro de téléphone</label>
+    <input type="tel" id="telephone" placeholder="97 XX XX XX" required />
+
+    <label for="motDePasse">Mot de passe</label>
+    <input type="password" id="motDePasse" required />
+
+    <p class="erreur masque" id="erreur"></p>
+    <button class="bouton-principal" id="btnInscrire">Créer mon compte enseignant</button>
+  </div>
+
+  <div class="carte masque" id="carteOtp">
+    <p style="font-size: 14px; margin: 0 0 4px;">Vérifie ton numéro</p>
+    <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 12px;" id="texteOtp">Un code à 6 chiffres a été envoyé par SMS.</p>
+    <label for="codeOtp">Code reçu par SMS</label>
+    <input type="text" id="codeOtp" inputmode="numeric" maxlength="6" placeholder="123456" />
+    <p class="erreur masque" id="erreurOtp"></p>
+    <button class="bouton-principal" id="btnVerifierOtp">Vérifier</button>
+  </div>
+
+  <div class="carte masque" id="carteDone" style="text-align: center;">
+    <p style="font-size: 17px; font-weight: 600; margin: 0 0 6px;">Compte créé</p>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px;">Ton compte est en attente de validation par le gestionnaire de la plateforme. Tu pourras te connecter une fois validé.</p>
+    <a href="index.html" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text);">Retour à l'accueil</a>
+  </div>
+
+  <a href="inscription.html" class="lien">Tu es étudiant ? Inscris-toi ici</a>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+let telephoneCourant = null;
+
+document.getElementById('btnInscrire').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur');
+  const nom = document.getElementById('nom').value.trim();
+  const telephone = document.getElementById('telephone').value.trim();
+  const mot_de_passe = document.getElementById('motDePasse').value;
+
+  if (!nom || !telephone || mot_de_passe.length < 4) {
+    erreurEl.textContent = 'Remplis tous les champs (mot de passe : 4 caractères minimum)';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+
+  try {
+    await appelApi('/auth/inscription-enseignant', {
+      method: 'POST',
+      body: JSON.stringify({ nom, telephone, mot_de_passe })
+    });
+    telephoneCourant = telephone;
+
+    const reponseOtp = await appelApi('/auth/otp/envoyer', {
+      method: 'POST',
+      body: JSON.stringify({ telephone })
+    });
+    if (reponseOtp.avertissement) {
+      document.getElementById('texteOtp').textContent = `Aucun SMS réel envoyé (fournisseur non configuré). Code de test : ${reponseOtp.code_test}`;
+    }
+
+    document.getElementById('carteFormulaire').classList.add('masque');
+    document.getElementById('carteOtp').classList.remove('masque');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+document.getElementById('btnVerifierOtp').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurOtp');
+  const code = document.getElementById('codeOtp').value.trim();
+  if (!code) {
+    erreurEl.textContent = 'Entre le code reçu';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  try {
+    await appelApi('/auth/otp/verifier', {
+      method: 'POST',
+      body: JSON.stringify({ telephone: telephoneCourant, code })
+    });
+    document.getElementById('carteOtp').classList.add('masque');
+    document.getElementById('carteDone').classList.remove('masque');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+</script>
+</body>
+</html>

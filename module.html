@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Module</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <a href="tableau-de-bord.html" class="lien" style="text-align: left; margin: 0 0 10px;">&larr; Retour aux modules</a>
+    <h1 id="titreModule" style="font-size: 19px;">Module</h1>
+    <p id="matiereModule"></p>
+  </div>
+
+  <div class="carte" id="carteAudio">
+    <audio id="lecteurAudio" controls style="width: 100%;"></audio>
+  </div>
+
+  <div class="carte masque" id="carteVideo">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Synthèse vidéo du module</p>
+    <video id="lecteurVideo" controls style="width: 100%; border-radius: 8px; background: #000;"></video>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Poser une question</p>
+    <label for="texteQuestion">Ta question sur ce module</label>
+    <input type="text" id="texteQuestion" placeholder="Écris ta question ici" />
+    <p class="erreur masque" id="erreurQuestion"></p>
+    <button class="bouton-principal" id="btnEnvoyer">Envoyer</button>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 10px;">Mes questions</p>
+    <div id="listeQuestions">
+      <p style="color: var(--text-muted); font-size: 13px;">Aucune question pour le moment.</p>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+const idModule = new URLSearchParams(window.location.search).get('id');
+
+async function chargerModule() {
+  try {
+    const { modules } = await appelApi('/modules');
+    const module = modules.find((m) => String(m.id) === String(idModule));
+    if (!module) return;
+
+    document.getElementById('titreModule').textContent = module.titre;
+    document.getElementById('matiereModule').textContent = module.matiere;
+
+    if (module.audio_url) {
+      document.getElementById('lecteurAudio').src = module.audio_url;
+    } else {
+      document.getElementById('carteAudio').innerHTML = '<p style="font-size: 13px; color: var(--text-muted); margin: 0;">Pas d\'explication audio pour ce module.</p>';
+    }
+
+    if (module.video_synthese_url) {
+      document.getElementById('lecteurVideo').src = module.video_synthese_url;
+      document.getElementById('carteVideo').classList.remove('masque');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+document.getElementById('btnEnvoyer').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurQuestion');
+  const contenu = document.getElementById('texteQuestion').value.trim();
+  if (!contenu) {
+    erreurEl.textContent = 'Écris ta question avant d\'envoyer';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  try {
+    await appelApi('/questions', {
+      method: 'POST',
+      body: JSON.stringify({ module_id: idModule, contenu_texte: contenu })
+    });
+    document.getElementById('texteQuestion').value = '';
+    erreurEl.classList.add('masque');
+    afficherConfirmation();
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+function afficherConfirmation() {
+  const conteneur = document.getElementById('listeQuestions');
+  conteneur.innerHTML = '<p style="font-size: 13px; color: var(--success);">Question envoyée. L\'enseignant répondra en texte ou en audio.</p>';
+}
+
+if (utilisateur && idModule) chargerModule();
+</script>
+</body>
+</html>

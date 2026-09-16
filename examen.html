@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Examen</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete" style="display: flex; align-items: center; justify-content: space-between;">
+    <div>
+      <a href="tableau-de-bord.html" class="lien" style="text-align: left; margin: 0 0 6px;">&larr; Retour</a>
+      <h1 style="font-size: 18px;" id="titreSujet">Examen</h1>
+    </div>
+    <span class="chrono" id="chrono">--:--:--</span>
+  </div>
+
+  <div class="carte" id="carteSujet">
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 10px;">Consulte le sujet ci-dessous, puis dépose ta copie avant la fin du temps imparti.</p>
+    <a id="lienSujet" href="#" target="_blank" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text); margin-bottom: 14px;">Ouvrir le sujet</a>
+
+    <label for="fichierCopie">Fichier de ta copie (lien après scan/photo)</label>
+    <input type="text" id="fichierCopie" placeholder="URL du fichier déposé" />
+    <p class="erreur masque" id="erreur"></p>
+    <button class="bouton-principal" id="btnSoumettre">Soumettre ma copie</button>
+  </div>
+
+  <div class="carte masque" id="carteFin" style="text-align: center;">
+    <p style="font-size: 17px; font-weight: 600; margin: 0 0 6px;" id="titreFin"></p>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0;" id="texteFin"></p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+const idSujet = new URLSearchParams(window.location.search).get('id');
+let finComposition = null;
+let intervalle = null;
+
+async function ouvrirSujet() {
+  if (!idSujet) {
+    document.getElementById('carteSujet').innerHTML = '<p style="font-size: 13px; color: var(--text-muted);">Aucun examen sélectionné. Reviens depuis un lien d\'examen partagé par ton enseignant.</p>';
+    return;
+  }
+  try {
+    const { sujet, copie, fin_composition } = await appelApi(`/sujets/${idSujet}/ouvrir`);
+    document.getElementById('titreSujet').textContent = sujet.titre;
+    document.getElementById('lienSujet').href = sujet.fichier_url;
+    finComposition = new Date(fin_composition);
+
+    if (copie.statut === 'soumis' || copie.statut === 'non_soumis') {
+      arreterExamen(copie);
+      return;
+    }
+
+    demarrerChrono();
+  } catch (err) {
+    document.getElementById('carteSujet').innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+function demarrerChrono() {
+  const chronoEl = document.getElementById('chrono');
+  intervalle = setInterval(() => {
+    const restant = finComposition - new Date();
+    if (restant <= 0) {
+      clearInterval(intervalle);
+      chronoEl.textContent = '00:00:00';
+      arreterExamen({ statut: 'non_soumis', note: 0 });
+      return;
+    }
+    const h = String(Math.floor(restant / 3600000)).padStart(2, '0');
+    const m = String(Math.floor((restant % 3600000) / 60000)).padStart(2, '0');
+    const s = String(Math.floor((restant % 60000) / 1000)).padStart(2, '0');
+    chronoEl.textContent = `${h}:${m}:${s}`;
+  }, 1000);
+}
+
+function arreterExamen(copie) {
+  if (intervalle) clearInterval(intervalle);
+  document.getElementById('carteSujet').classList.add('masque');
+  document.getElementById('carteFin').classList.remove('masque');
+  if (copie.statut === 'soumis') {
+    document.getElementById('titreFin').textContent = 'Copie soumise';
+    document.getElementById('texteFin').textContent = 'Ta copie a bien été envoyée. Une fois corrigée par l\'enseignant, ta note apparaîtra dans "Mes notes".';
+  } else {
+    document.getElementById('titreFin').textContent = 'Temps écoulé';
+    document.getElementById('texteFin').textContent = 'Le temps de composition est terminé sans copie soumise. Cet examen est considéré comme fait, avec la note de 0.';
+  }
+}
+
+document.getElementById('btnSoumettre').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreur');
+  const fichier_url = document.getElementById('fichierCopie').value.trim();
+  if (!fichier_url) {
+    erreurEl.textContent = 'Ajoute le lien de ta copie avant de soumettre';
+    erreurEl.classList.remove('masque');
+    return;
+  }
+  try {
+    const { copie } = await appelApi(`/sujets/${idSujet}/copie`, {
+      method: 'POST',
+      body: JSON.stringify({ fichier_url })
+    });
+    arreterExamen(copie);
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+if (utilisateur) ouvrirSujet();
+</script>
+</body>
+</html>

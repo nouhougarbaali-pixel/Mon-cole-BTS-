@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Programmes</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <a href="tableau-de-bord.html" class="lien" style="text-align: left; margin: 0 0 10px;">&larr; Retour</a>
+    <h1 style="font-size: 19px;">Programmes</h1>
+    <p>Choisis le programme auquel accéder ou t'inscrire.</p>
+  </div>
+
+  <div id="listeProgrammes">
+    <p style="color: var(--text-muted); font-size: 14px;">Chargement...</p>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+
+async function charger() {
+  const conteneur = document.getElementById('listeProgrammes');
+  try {
+    const { programmes } = await appelApi('/programmes');
+    conteneur.innerHTML = '';
+
+    programmes.forEach((p) => {
+      const carte = document.createElement('div');
+      carte.className = 'carte';
+
+      const periode = p.mois_jour_debut
+        ? `Du ${p.mois_jour_debut.replace('-', '/')} au ${p.mois_jour_fin.replace('-', '/')} chaque année`
+        : 'Accès toute l\'année';
+
+      let etiquette = '';
+      let bouton = '';
+
+      if (p.deja_inscrit) {
+        etiquette = '<span class="etiquette actif">Inscrit</span>';
+        bouton = `<a href="tableau-de-bord.html?programme=${p.code}" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text); margin-top: 10px;">Voir mes modules</a>`;
+      } else if (!p.disponible) {
+        etiquette = '<span class="etiquette attente">Fermé actuellement</span>';
+      } else {
+        bouton = `<button class="bouton-principal" data-id="${p.id}" style="margin-top: 10px;">S'inscrire (${Number(p.frais_inscription).toLocaleString('fr-FR')} F)</button>`;
+      }
+
+      carte.innerHTML = `
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+          <div>
+            <p style="font-size: 15px; font-weight: 600; margin: 0;">${p.nom}</p>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0;">${periode}</p>
+          </div>
+          ${etiquette}
+        </div>
+        <p style="font-size: 13px; color: var(--text-muted); margin: 10px 0 0;">
+          Inscription : ${Number(p.frais_inscription).toLocaleString('fr-FR')} F -
+          Abonnement : ${Number(p.frais_abonnement).toLocaleString('fr-FR')} F
+          ${p.type_abonnement === 'mensuel' ? '/mois' : ' (session complète)'}
+        </p>
+        ${bouton}
+      `;
+
+      const btn = carte.querySelector('button[data-id]');
+      if (btn) {
+        btn.addEventListener('click', () => sInscrire(p.id, p.code, carte));
+      }
+
+      conteneur.appendChild(carte);
+    });
+  } catch (err) {
+    conteneur.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+async function sInscrire(idProgramme, codeProgramme, carte) {
+  try {
+    await appelApi(`/programmes/${idProgramme}/inscription`, { method: 'POST' });
+    window.location.href = `paiement-programme.html?programme=${codeProgramme}`;
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+if (utilisateur) charger();
+</script>
+</body>
+</html>

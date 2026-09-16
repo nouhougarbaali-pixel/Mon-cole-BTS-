@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Paiement</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete">
+    <p class="marque">Mon école BTS</p>
+    <p id="titreProgramme">Paiement</p>
+  </div>
+
+  <div class="carte" id="etapeInscription">
+    <div class="carte" style="background: var(--bg-alt); display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px;">
+      <span style="font-size: 13px; color: var(--text-muted);">Frais d'inscription</span>
+      <span style="font-size: 20px; font-weight: 600;" id="montantInscription">-</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px;">Payer avec</p>
+    <button class="bouton-secondaire" id="btnPayerInscription">Airtel Money</button>
+    <p class="erreur masque" id="erreurInscription"></p>
+    <button class="bouton-principal masque" id="btnConfirmerInscription">Confirmer le paiement</button>
+  </div>
+
+  <div class="carte masque" id="etapeAbonnement">
+    <div class="carte" style="background: var(--bg-alt); display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px;">
+      <span style="font-size: 13px; color: var(--text-muted);" id="libelleAbonnement">Abonnement</span>
+      <span style="font-size: 20px; font-weight: 600;" id="montantAbonnement">-</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 8px;">Payer avec</p>
+    <button class="bouton-secondaire" id="btnPayerAbonnement">Airtel Money</button>
+    <p class="erreur masque" id="erreurAbonnement"></p>
+    <button class="bouton-principal masque" id="btnConfirmerAbonnement">Confirmer le paiement</button>
+  </div>
+
+  <div class="carte masque" id="etapeDone" style="text-align: center;">
+    <p style="font-size: 17px; font-weight: 600; margin: 0 0 6px;">Inscription confirmée</p>
+    <p style="font-size: 13px; color: var(--text-muted); margin: 0 0 16px;" id="texteDone"></p>
+    <a href="tableau-de-bord.html" class="bouton-principal" id="lienModules" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box;">Accéder aux modules</a>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+const codeProgramme = new URLSearchParams(window.location.search).get('programme') || 'standard';
+let programmeActuel = null;
+
+async function chargerProgramme() {
+  const { programmes } = await appelApi('/programmes');
+  programmeActuel = programmes.find((p) => p.code === codeProgramme);
+  if (!programmeActuel) return;
+
+  document.getElementById('titreProgramme').textContent = programmeActuel.nom;
+  document.getElementById('montantInscription').textContent = `${Number(programmeActuel.frais_inscription).toLocaleString('fr-FR')} F`;
+  document.getElementById('libelleAbonnement').textContent =
+    programmeActuel.type_abonnement === 'mensuel' ? 'Abonnement - 1 mois' : 'Abonnement - session complète';
+  document.getElementById('montantAbonnement').textContent = `${Number(programmeActuel.frais_abonnement).toLocaleString('fr-FR')} F`;
+  document.getElementById('lienModules').href = `tableau-de-bord.html?programme=${programmeActuel.code}`;
+}
+
+document.getElementById('btnPayerInscription').addEventListener('click', () => {
+  document.getElementById('btnConfirmerInscription').classList.remove('masque');
+});
+
+document.getElementById('btnConfirmerInscription').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurInscription');
+  try {
+    await appelApi('/paiements', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'inscription',
+        operateur: 'airtel_money',
+        telephone_client: utilisateur.telephone,
+        programme_id: programmeActuel.id
+      })
+    });
+    document.getElementById('etapeInscription').classList.add('masque');
+    document.getElementById('etapeAbonnement').classList.remove('masque');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+document.getElementById('btnPayerAbonnement').addEventListener('click', () => {
+  document.getElementById('btnConfirmerAbonnement').classList.remove('masque');
+});
+
+document.getElementById('btnConfirmerAbonnement').addEventListener('click', async () => {
+  const erreurEl = document.getElementById('erreurAbonnement');
+  try {
+    await appelApi('/paiements', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'abonnement',
+        operateur: 'airtel_money',
+        telephone_client: utilisateur.telephone,
+        programme_id: programmeActuel.id
+      })
+    });
+    document.getElementById('texteDone').textContent = programmeActuel.type_abonnement === 'mensuel'
+      ? 'Valable un mois à partir d\'aujourd\'hui.'
+      : 'Valable jusqu\'au 15 août.';
+    document.getElementById('etapeAbonnement').classList.add('masque');
+    document.getElementById('etapeDone').classList.remove('masque');
+  } catch (err) {
+    erreurEl.textContent = err.message;
+    erreurEl.classList.remove('masque');
+  }
+});
+
+if (utilisateur) chargerProgramme();
+</script>
+</body>
+</html>

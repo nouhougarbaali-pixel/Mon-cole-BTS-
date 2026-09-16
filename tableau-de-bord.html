@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mon école BTS - Mes modules</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<div class="ecran">
+  <div class="entete" style="display: flex; align-items: center; justify-content: space-between;">
+    <div>
+      <p class="marque" style="font-size: 18px;">Mon école BTS</p>
+      <p id="nomEtudiant"></p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <a href="notifications.html" style="position: relative; text-decoration: none; color: var(--text); font-size: 20px;">
+        🔔<span id="badgeNotif" class="masque" style="position: absolute; top: -4px; right: -6px; background: var(--warn); color: #fff; font-size: 10px; font-weight: 600; border-radius: 8px; padding: 1px 5px;"></span>
+      </a>
+      <button class="bouton-secondaire" style="width: auto; padding: 6px 12px; font-size: 12px;" onclick="deconnecter()">Quitter</button>
+    </div>
+  </div>
+
+  <div class="carte">
+    <p style="font-size: 15px; font-weight: 600; margin: 0 0 12px;" id="titreModules">Modules</p>
+    <div id="listeModules">
+      <p style="color: var(--text-muted); font-size: 14px;">Chargement...</p>
+    </div>
+  </div>
+
+  <a href="programmes.html" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text); margin-bottom: 14px;">Voir les programmes disponibles</a>
+
+  <div class="grille-2">
+    <a href="module.html" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text);">Poser une question</a>
+    <a href="examen.html" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text);">Mes examens</a>
+  </div>
+  <a href="mes-notes.html" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text); margin-top: 8px;">Mes notes</a>
+  <a href="mes-paiements.html" class="bouton-secondaire" style="display: block; text-align: center; text-decoration: none; box-sizing: border-box; color: var(--text); margin-top: 8px;">Mes paiements</a>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const utilisateur = exigerConnexion('etudiant');
+if (utilisateur) document.getElementById('nomEtudiant').textContent = utilisateur.nom;
+
+async function chargerBadgeNotifications() {
+  try {
+    const { notifications } = await appelApi('/notifications');
+    const nonLues = notifications.filter((n) => !n.lu).length;
+    if (nonLues > 0) {
+      const badge = document.getElementById('badgeNotif');
+      badge.textContent = nonLues;
+      badge.classList.remove('masque');
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function charger() {
+  const conteneur = document.getElementById('listeModules');
+  const codeProgramme = new URLSearchParams(window.location.search).get('programme') || 'standard';
+  document.getElementById('titreModules').textContent =
+    codeProgramme === 'standard' ? 'Modules' : 'Modules - Session intensive';
+  try {
+    const { modules } = await appelApi(`/modules?programme=${codeProgramme}`);
+    if (modules.length === 0) {
+      conteneur.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">Aucun module publié pour le moment.</p>';
+      return;
+    }
+
+    conteneur.innerHTML = '';
+    let matiereActuelle = null;
+
+    modules.forEach((module, index) => {
+      if (module.matiere !== matiereActuelle) {
+        matiereActuelle = module.matiere;
+        const titreMatiere = document.createElement('p');
+        titreMatiere.style.cssText = 'font-size: 13px; font-weight: 500; color: var(--text-muted); margin: 14px 0 4px;';
+        titreMatiere.textContent = matiereActuelle;
+        conteneur.appendChild(titreMatiere);
+      }
+
+      const ligne = document.createElement('div');
+      ligne.className = 'ligne-module';
+      ligne.innerHTML = `
+        <div class="numero ${module.verrouille ? 'verrouille' : ''}">${module.ordre}</div>
+        <div style="flex: 1; min-width: 0;">
+          <p style="margin: 0; font-size: 14px;" class="${module.verrouille ? 'verrouille' : ''}">${module.titre}</p>
+          <p style="margin: 3px 0 0; font-size: 12px; color: var(--text-muted);">${module.verrouille ? 'Verrouillé' : (module.audio_url ? 'Explication audio disponible' : 'Support disponible')}</p>
+        </div>
+      `;
+      if (!module.verrouille) {
+        const bouton = document.createElement('button');
+        bouton.textContent = 'Ouvrir';
+        bouton.style.cssText = 'font-size: 12px; padding: 6px 12px;';
+        bouton.addEventListener('click', () => {
+          window.location.href = `module.html?id=${module.id}`;
+        });
+        ligne.appendChild(bouton);
+      }
+      conteneur.appendChild(ligne);
+    });
+  } catch (err) {
+    conteneur.innerHTML = `<p class="erreur">${err.message}</p>`;
+  }
+}
+
+if (utilisateur) {
+  charger();
+  chargerBadgeNotifications();
+}
+</script>
+</body>
+</html>
